@@ -120,12 +120,11 @@ func Login(ctx *fiber.Ctx) error {
 		return ctx.SendStatus(fiber.StatusNotFound)
 	}
 
-	hash, _ := bcrypt.GenerateFromPassword([]byte(body.Password+user.Salt), bcrypt.DefaultCost)
-
 	id_match := body.Identifier == user.Email || body.Identifier == user.Username
-	err = bcrypt.CompareHashAndPassword(user.Password, hash)
 
-	if !id_match && err != nil {
+	pass_match := bcrypt.CompareHashAndPassword(user.Password, []byte(body.Password+user.Salt))
+
+	if !id_match || pass_match != nil {
 		return ctx.SendStatus(fiber.StatusUnauthorized)
 	}
 
