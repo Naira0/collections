@@ -31,7 +31,6 @@ func newConfig() *Config {
 		}
 	}
 
-	// returns default config
 	if err != nil {
 		return default_config()
 	}
@@ -51,20 +50,11 @@ func newConfig() *Config {
 	return config
 }
 
-func init_files() {
-	if !api.FileExists("./files/") {
-		os.Mkdir("./files/", 0644)
-		if !api.FileExists("./files/profiles") {
-			os.Mkdir("./files/profiles", 0644)
-		}
-	}
-}
-
 func main() {
 
 	config := newConfig()
 
-	init_files()
+	os.Mkdir("./files/profiles/", 0750)
 
 	app := fiber.New()
 	user := app.Group("/user")
@@ -78,7 +68,7 @@ func main() {
 	user.Patch("/change_password", api.ChangePassword)
 	user.Patch("/update_bookmark/:id", api.UpdateBookmark)
 	user.Get("/all_bookmarks", api.AllBookmarks)
-	user.Post("/set_profile_pic/", api.SetProfilePic)
+	user.Patch("/set_profile_pic/", api.SetProfilePic)
 
 	app.Static("/files", "./files/")
 
@@ -86,6 +76,7 @@ func main() {
 
 	album.Post("/upload", api.UploadAlbum)
 	album.Delete("/delete/:id", api.DeleteAlbum)
+	album.Get("/get/:id", api.GetAlbum)
 
 	app.Post("/test", api.Test)
 

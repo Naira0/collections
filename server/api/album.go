@@ -44,7 +44,7 @@ func UploadAlbum(ctx *fiber.Ctx) error {
 
 	delete(form.Value, "data")
 
-	n := len(form.Value)
+	n := len(form.File)
 
 	if n == 0 {
 		return ctx.SendStatus(fiber.StatusBadRequest)
@@ -53,20 +53,39 @@ func UploadAlbum(ctx *fiber.Ctx) error {
 	id := xid.New().String()
 	dir := "./files/" + id + "/"
 
-	os.Mkdir(dir, 0644)
+	os.Mkdir(dir, 0750)
 
-	files := make([]string, n)
-	var i int
+	ff, exists := form.File["files"]
 
-	for name, bytes := range form.Value {
-		err := os.WriteFile(dir+name, []byte(bytes[0]), 0644)
+	if !exists {
+		return ctx.SendStatus(fiber.StatusBadRequest)
+	}
+
+	files := make([]string, len(ff))
+
+	for i, header := range ff {
+
+		file, err := header.Open()
 
 		if err != nil {
 			return ctx.SendStatus(fiber.StatusInternalServerError)
 		}
 
-		files[i] = name
-		i++
+		contents := make([]byte, header.Size)
+
+		_, err = file.Read(contents)
+
+		if err != nil {
+			return ctx.SendStatus(fiber.StatusInternalServerError)
+		}
+
+		err = os.WriteFile(dir+header.Filename, contents, 0666)
+
+		if err != nil {
+			return ctx.SendStatus(fiber.StatusInternalServerError)
+		}
+
+		files[i] = header.Filename
 	}
 
 	_, err = db.Exec("INSERT INTO albums(id, name, authorId, description, tags, files, createdAt) VALUES($1, $2, $3, $4, $5, $6, (SELECT CURRENT_TIMESTAMP))",
@@ -77,7 +96,20 @@ func UploadAlbum(ctx *fiber.Ctx) error {
 		return ctx.SendStatus(fiber.StatusInternalServerError)
 	}
 
-	return nil
+	return ctx.SendString(id)
+}
+
+func GetAlbum(ctx *fiber.Ctx) error {
+	id := ctx.Params("id")
+
+	album := new(database.Album)
+	err := db.Get(album, "SELECT * FROM albums WHERE id = $1", id)
+
+	if err != nil {
+		return ctx.SendStatus(fiber.StatusNotFound)
+	}
+
+	return ctx.JSON(album)
 }
 
 func DeleteAlbum(ctx *fiber.Ctx) error {
@@ -126,19 +158,17 @@ func AllBookmarks(ctx *fiber.Ctx) error {
 		return ctx.SendStatus(fiber.StatusInternalServerError)
 	}
 
-	albums := make([]AlbumMetaData, len(album_ids))
+	albums := make([]database.Album, len(album_ids))
 
 	for i := 0; i < len(album_ids); i++ {
-		err = db.Get(&albums[i], "SELECT name, description, authorId, id, likes from albums where id = $1", album_ids[i])
+		err = db.Get(&albums[i], "SELECT * from albums where id = $1", album_ids[i])
 
 		if err != nil {
 			return ctx.SendStatus(fiber.StatusInternalServerError)
 		}
 	}
 
-	return ctx.JSON(fiber.Map{
-		"data": albums,
-	})
+	return ctx.JSON(albums)
 }
 
 func UpdateBookmark(ctx *fiber.Ctx) error {

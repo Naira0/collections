@@ -1,5 +1,7 @@
 package database
 
+import "github.com/lib/pq"
+
 type Comment struct {
 	AlbumID,
 	AuthorId,
@@ -18,14 +20,14 @@ type User struct {
 }
 
 type Album struct {
-	Id,
-	Name,
-	AuthorId,
-	Description,
-	CreatedAt string
-	Likes uint32
-	Tags,
-	Files []string
+	Id          string         `json:"id"`
+	Name        string         `json:"name"`
+	AuthorId    string         `json:"authorId"`
+	Description string         `json:"description"`
+	CreatedAt   string         `json:"createdAt"`
+	Likes       uint32         `json:"likes"`
+	Tags        pq.StringArray `json:"tags"`
+	Files       pq.StringArray `json:"files"`
 }
 
 type Session struct {

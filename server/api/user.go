@@ -82,12 +82,6 @@ func DeleteAccount(ctx *fiber.Ctx) error {
 
 	tx.Exec("DELETE FROM albums WHERE authorId = $1", session.UserId)
 
-	err := eraseAlbum(tx, "authorId", session.UserId)
-
-	if err != nil {
-		return ctx.SendStatus(fiber.StatusInternalServerError)
-	}
-
 	ctx.Cookie(&fiber.Cookie{
 		Name:  "id",
 		Value: "invalid",
@@ -100,6 +94,8 @@ func DeleteAccount(ctx *fiber.Ctx) error {
 	for _, id := range album_ids {
 		os.RemoveAll("./files/" + id)
 	}
+
+	os.Remove("./files/profiles/" + session.UserId)
 
 	return nil
 }
@@ -226,6 +222,13 @@ func SetProfilePic(ctx *fiber.Ctx) error {
 		return ctx.SendStatus(fiber.StatusUnauthorized)
 	}
 
+	reset := ctx.Query("reset")
+
+	if len(reset) != 0 {
+		os.Remove("./files/profiles/" + session.UserId)
+		return nil
+	}
+
 	data := ctx.Body()
 
 	// fails if body is larger than 5mbs
@@ -295,8 +298,8 @@ func GetAccount(ctx *fiber.Ctx) error {
 		return ctx.SendStatus(fiber.StatusNotFound)
 	}
 
-	albums := new([]AlbumMetaData)
-	err = db.Select(albums, "SELECT name, description, authorID, id, likes from albums where authorId = $1", user.Id)
+	albums := new([]database.Album)
+	err = db.Select(albums, "SELECT * from albums where authorId = $1", user.Id)
 
 	if err != nil {
 		return err
